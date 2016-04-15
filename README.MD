@@ -26,8 +26,6 @@
 ## View体系
 - [View系统分析01——View树的构建](Android/UI/View体系/View系统分析01——View树的构建.md)
 - [View系统分析02——View树遍历的开始](Android/UI/View体系/View系统分析02——View树遍历的开始.md)
-
-
 - [001——View基础介绍](Android/UI/View体系/001——View基础介绍.md)
 - [002——View绘制流程-measure](Android/UI/View体系/002——View绘制流程-measure.md)
 - [003——View绘制流程-onMeasure一般写法与相关总结](Android/UI/View体系/003——View绘制流程-onMeasure一般写法与相关总结.md)
