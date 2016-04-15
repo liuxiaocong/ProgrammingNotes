@@ -23,9 +23,26 @@
 - [007_Fragment的问题收集](Android/Fragment/007_Fragment问题收集.md)
 - [008_FragmentDialog使用](Android/Fragment/008_FragmentDialog使用.md)
 
+## View体系
+- [View系统分析01——View树的构建](Android/UI/View体系/View系统分析01——View树的构建.md)
+- [View系统分析02——View树遍历的开始](Android/UI/View体系/View系统分析02——View树遍历的开始.md)
 
 
+- [001——View基础介绍](Android/UI/View体系/001——View基础介绍.md)
+- [002——View绘制流程-measure](Android/UI/View体系/002——View绘制流程-measure.md)
+- [003——View绘制流程-onMeasure一般写法与相关总结](Android/UI/View体系/003——View绘制流程-onMeasure一般写法与相关总结.md)
+- [004——View绘制流程-layout](Android/UI/View体系/004——View绘制流程-layout)
+- [005——View绘制流程-draw](Android/UI/View体系/005——View绘制流程-draw.md)
+- [006——View的事件分发源码分析(2.3)](Android/UI/View体系/006——View的事件分发源码分析(2.3).md)
+- [007——View事件分发与源码分析](Android/UI/View体系/007——View事件分发与源码分析.md)
+- [008——关于View事件分发的总结与滑动冲突](Android/UI/View体系/008——关于View事件分发的总结与滑动冲突.md)
+- [009——View实现滑动的方式](Android/UI/View体系/009——View实现滑动的方式.md)
+- [010——View滑动冲突常用解决方案](Android/UI/View体系/010——View滑动冲突常用解决方案.md)
+- [011——GestureDetector学习](Android/UI/View体系/011——GestureDetector学习.md)
+- [012——处理好多指拖动和MotionEvent解析](Android/UI/View体系/012——处理好多指拖动和MotionEvent解析)
+- [013——嵌套滑动研究](Android/UI/View体系/013——嵌套滑动研究.md)
 
+>未完
 
 
 <br/><br/><br/>
