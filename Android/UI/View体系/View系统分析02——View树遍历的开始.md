@@ -62,6 +62,7 @@ invalidate方法用的比较多，当一个View的内容放生变化时，我们
 
 ## 1.2 invalidate方法分析
 
+
 invalidate方法在View中实现如下：
 
         //只能在UI Thread中使用，别的Thread用postInvalidate方法，View是可见的才有效，回调onDraw方法，针对整个View
@@ -125,7 +126,8 @@ invalidate方法在View中实现如下：
 
 
 上面分析总结如下：
->将要刷新区域直接传递给了父ViewGroup的invalidateChild方法，在invalidate中，调用父View的invalidateChild，这是一个从当前向上级父View回溯的过程，每一层的父View都将自己的显示区域与传入的刷新Rect做交集 。所以我们看下ViewGroup的invalidateChild方法，源码如下：
+
+将要刷新区域直接传递给了父ViewGroup的invalidateChild方法，在invalidate中，调用父View的invalidateChild，这是一个从当前向上级父View不断传递的过程，每一层的父View都将自己的显示区域与传入的刷新Rect做交集 。所以我们看下ViewGroup的invalidateChild方法，源码如下：
 
 
      public final void invalidateChild(View child, final Rect dirty) {
@@ -135,16 +137,16 @@ invalidate方法在View中实现如下：
 
                 do {
                    ......省略代码
-
+                    //invalidateChildInParent返回当前View的mParent
                     parent = parent.invalidateChildInParent(location, dirty);
                     ......省略代码
                 } while (parent != null);
             }
         }
 
-这个过程就是不断的向上调用parent.invalidateChildInParent(location, dirty)方法。那么最终这个方法会向上执行到哪呢？DecorView？不是的，因为DecorView没有执行遍历的方法，继续分析：
+这个过程就是不断的向上调用parent.invalidateChildInParent(location, dirty)方法。那么最终这个方法会向上执行到哪呢，我们需要分析View的parent是怎么赋值的：
 
-首先View的mParent是如果被赋值的？
+首先View的mParent是这样被赋值的？
 
 
     void assignParent(ViewParent parent) {
@@ -189,34 +191,7 @@ addViewInner
 
      }
 
-2,但是Decor作为一个View树的跟布局，肯定不可能被添加到ViewGroup中，那么它的mParent是谁呢？答案是ViewRoot(稍后分析ViewRoot是怎么赋值给mParent的)，下面ViewRoot一段代码也可以说明：
-
-       public void invalidateChild(View child, Rect dirty) {
-            checkThread();
-            ......
-            if (!mWillDrawSoon) {
-                scheduleTraversals();
-            }
-        }
-
-
-        public ViewParent invalidateChildInParent(final int[] location, final Rect dirty) {
-              invalidateChild(null, dirty);
-        return null;
-    }
-
-        public ViewParent getParent() {
-            return null;
-        }
-
-1，checkThread，如果不是UI线程调用，直接抛出异常(同时也说明，在DecorView的mParent被赋值之前，是可以在子线程中操作ui的)
-
-2，invalidateChildInParent调用invalidateChild，然后调用scheduleTraversals();执行遍历
-
-3，getParent()返回null，上面invalidateChild方法中的循环结束
-
-
-然后调用scheduleTraversals的逻辑比较复杂，他是整个View树绘制的起点，稍后分析
+2,但是Decor作为一个View树的跟布局，肯定不可能被添加到ViewGroup中，那么它的mParent是谁呢？答案是ViewRoot(ViewRootImpl)，看下面分析。
 
 
 ## 1.3 DecorView的mParent被赋值过程、ViewRoot被创建过程与添加到WindowManager简单分析
@@ -234,7 +209,7 @@ onDestory
 
 其中onCreate表示Activity被创建，我们也在这里setContentView，onStart表示视图即将可见，onResume表示当前Activity已可以与用户进行交互，并且视图已经可见，所以可以从这里开始分析，
 
-熟悉Activity架构的都应该知道，Activity的生命周期方法是否ActivityManagerService通过Binder，ApplicationThread进行调用的，ApplicationThread通过H类发送消息到ActivityThread，进行Activity的各生命周期方法的操作与回调
+熟悉Activity架构的都应该知道，Activity的生命周期方法是在ActivityManagerService通过ApplicationThread进行调用的，ApplicationThread通过H类发送消息到ActivityThread，进行Activity的各生命周期方法的操作与回调
 
 onCreate表示Activity被创建，此时DecorView压根就没被创建，直接略过
 
@@ -362,10 +337,38 @@ onResume方法：直接看handleResumeActivity
 
 然后View树执行遍历操作，整个视图显示出来。
 
+到此就可以确定DecorView的mParent确实是ViewRoot，看下面ViewRoot中的代码：
+
+       public void invalidateChild(View child, Rect dirty) {
+            checkThread();
+            ......
+            if (!mWillDrawSoon) {
+                scheduleTraversals();//遍历的开始
+            }
+        }
+
+
+        public ViewParent invalidateChildInParent(final int[] location, final Rect dirty) {
+              invalidateChild(null, dirty);
+        return null;
+    }
+
+        public ViewParent getParent() {
+            return null;
+        }
+
+1，checkThread，如果不是UI线程调用，直接抛出异常(但是在DecorView的mParent被赋值之前，是可以在子线程中操作ui的，这时遍历不会真的发生，而只是给View的属性设置一个初始值)
+
+2，invalidateChildInParent调用invalidateChild，然后调用scheduleTraversals();执行遍历
+
+3，getParent()返回null，上面invalidateChild方法中的循环结束
+
+
+
 
 <br/>
 ---
-**这里说一下ViewRoot的创建细节**：
+**这里说一下ViewRoot的创建过程**：
 
 首先从ViewRoot的构造函数说起：
 
@@ -422,15 +425,15 @@ onResume方法：直接看handleResumeActivity
 
 
 这里让客户端的mWindow与服务端的WidowManagerService产生关联，mWindow就是W，是一个Binder结构，传递给服务端后，服务端就可以主动调用客户端，这样也是双方都掌握着主动调用的跨进程通信方式
-
 <br/>
 <br/>
 
 ---
 
 
+### postInvalidate
 
-> **postInvalidate**方法与invalidate方法类似。只是它适合于在子线程调用。
+ postInvalidate方法与invalidate方法类似。只是它适合于在子线程调用。
 
 ###requestLayout方法分析：
 
@@ -456,6 +459,7 @@ onResume方法：直接看handleResumeActivity
 
 
 **至此View的绘制流程，什么时候发起绘制，以及发起绘制的流程分析完毕。**
+
 
 
 总结：
@@ -607,12 +611,12 @@ View树的布局完毕通知也是在遍历中通知的：
 
 ## 3 总结
 
-最后总结一下Activity与ViewRoot与WindowManager，Window的关系：
 
 
--  DecorView初始化之后将会被添加到WindowManager中，同时WindowManager中会为新添加的DecorView创建一个对应的ViewRoot，并把DecorView设置给ViewRoot。所以view树的根View就是DecorView，因为DecorView的父亲是ViewRoot，实现了ViewParent接口，但是没有继承自View，所以根本不是一个View，它可以理解为View树的管理者，其成员变量mView执行它管理的View树的根View，遍历流程由它发起，ViewRoo它的核心任务是与WindowManagerService进行通信
 
-- 当Activity被创建时，会相应的创建一个Window对象，Window对象创建时会获取应用的WindowManager（注意，这是应用的窗口管理者，不是系统的,是LocalWindowManager，不过其内部还是持有系统WindowManager的引用），从系统的命名来看，WindowManger继承自ViewManager，而添加到WindowManager中的是DecorView，不是Window，都说明了其实真正意义上的window就是View。
+-  DecorView初始化之后将会被添加到WindowManager中，同时WindowManager中会为新添加的DecorView创建一个对应的ViewRoot，并把DecorView设置给ViewRoot。所以view树的根View就是DecorView，因为DecorView的父亲是ViewRoot，实现了ViewParent接口，但是没有继承自View，所以根本不是一个View，它可以理解为View树的管理者，其成员变量mView作为它管理的View树的根View，遍历流程由它发起，ViewRoo它的核心任务是与WindowManagerService进行通信。
+
+- 当Activity被创建时，会相应的创建一个Window对象，Window对象创建时会获取应用的WindowManager（注意，这是应用的窗口管理者，不是系统的,是LocalWindowManager，不过其内部还是持有系统WindowManager的引用），WindowManger继承自ViewManager，而添加到WindowManager中的是DecorView，不是Window，所以其实真正意义上的window就是View。
 
   ViewManager的定义很简单就是添加、更新，删除view：
 
@@ -623,30 +627,12 @@ View树的布局完毕通知也是在遍历中通知的：
       }
   而WindowManager的实现了ViewManager，并添加了对窗口管理的一系列行为与属性，从而简化了客户端对窗口的操作。
 
-- W是一个Binder对象。可以实现跨进程的通信了，并且是一个双方都掌握着主动调用的跨进程通信方式。
-- 当ViewRoot的setView方法中将会调用requestLayout进行第一次视图测量请求。同时sWindowSession.add自身内部的一个W对象，以此达到和WindowManagerService的关联。
-- 在ViewRoot的构造方法中会通过getWindowSession来获取WindowManagerService系统服务的远程对象(这才是系统级的)。
+
+- 当ViewRoot的setView方法中将会调用requestLayout进行第一次视图测量请求。同时sWindowSession.add自身内部的W对象，以此达到和WindowManagerService的关联。ViewRoot在ViewRoot的构造方法中会通过getWindowSession来获取WindowManagerService系统服务的远程对象
 
 
-- Activity可以看做UI管理者，但它不直接管理View树和ViewRoot，它内部有一个Window对象，其实例是PhoneWindow，Activity通过PhoneWindow构建View树，通过对Window的风格设置来控制View树构建，Window字面意思就是窗口，而Window是一个抽象的概念，根据不同的产品可以有不同的实现，具体由Activity.attact中调用PolicyManager.makeNewWindow决定的，Android系统默认的窗口实现就是PhoneWindow。
+- Activity可以看做UI管理者，但它不直接管理View树和ViewRoot，它内部有一个Window对象，其实例是PhoneWindow，Activity通过PhoneWindow构建View树，通过对Window的风格设置来控制View树构建，Window字面意思就是窗口，而Window是一个抽象的概念，根据不同的产品可以有不同的实现，具体由Activity.attact中调用PolicyManager.makeNewWindow决定的。
 
-- Window和WindowManagerImpl的关系
-在Android中，以Window开头的类有很多，如Window，WindowManager，WindowManagerImpl这些类都表示什么意思呢？
-首先Window是面向Activity的，它表示UI界面的“外框”，而框里面的视图View，布局是由Window的子类PhoneWindow规划构建的，Window另外一方面还要与WindowManagerService进行通信，但是Window并不是直接和WindowManagerService交互，一个应用程序有很多个Window，如果每个Window都单独与WindowManagerService进行通信就会很混乱，所以就有了WindowManager，它作为Window的成员变量mWindowManager而存在，而WindowMnanager的真正的实现是WindowManagerImpl(LocalWindowManager内部持有的也是WindowManagerImpl的引用)，WindowManagerImpl是应用程序的Window管理者，
-
-- 在早期的版本中每个应用程序只有一个WindowManagerImpl，其他类通过WindowManagerImpl.getDefault()获取其引用，WindowManagerImpl内有有如下成员变量：
-
-```java
-        private View[] mViews;
-        private ViewRoot[] mRoots;
-        private WindowManager.LayoutParams[] mParams;
-```
-
-分别是窗口view树的根View(DecorView)，view树的直接管理者ViewRoot,以及窗口的属性，Activity与ViewRoot和DecorView是一对一的关系，但是在android4.3后，WindowManagerImpl不再直接存储上述三个数组，而是由WindowMangerGlobal来管理。每个Application都有一个ActivityThread主线程以及mActivities全局变量，后者记录了运行在应用程序中的所有Activity对象。一个Activity对应唯一的WindowManager以及ViewRootImpl。WindowManagerGlobal作为全局管理者，其内部的mRoots和mViews记录了Activity的ViewRootImpl和View树的顶层元素。ViewRootImpl的另一个重要角色就是负责与WMS通信。从ViewRootImpl到WMS间的通信利用的是IWindowSession，而反方向则是由IWindow来完成的。
-
-
-- ViewRoot和WindowManagerService的关系
-每一个ViewRoot(后期版本为ViewRootImpl)内部都有全局变量static IWindowSession sWindowSession; sWindowSession用于ViewRoot与WindowManagerService通信，ViewRoot通过WindowManagerService的openSession（）接口来创建得到的IWindowSession，同时当ViewRoot与DecorView关联后，会通过sWindowSession.add()方法给WindowManagerService提供一个IWindowManager，IWindowManager的实例是一个W类，是一个Binder，这样WindowManagerService也可以主动的通过IWindowManager于ViewRoot通信，这就是双向通信，
 
 
 ViewRoot在各个版本的不同名称：

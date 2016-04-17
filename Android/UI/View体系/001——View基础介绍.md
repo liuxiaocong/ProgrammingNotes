@@ -98,6 +98,7 @@ bottom = top + getHeight();
  onDetachedFromWindow会在View被remove或者所在Activity退出时调用，与onAttachedToWindow对应
 5. View如果有滑动逻辑，处理好滑动冲突
 6. 如果可以使用代码完成的布局，尽量不要使用xml，因为代码布局比xml布局快很多
+7. 看看support包中是否有一些关于View的一些兼容操作，如果有就尽量使用support包中的方法。如v4包中的ViewCompat
 
 ---
 <br/><br/>

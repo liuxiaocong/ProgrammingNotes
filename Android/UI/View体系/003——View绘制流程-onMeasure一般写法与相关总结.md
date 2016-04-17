@@ -77,23 +77,17 @@
 
 
 
-对于定制化的ViewGroup当然据根据业务需求来定了。
-
-
 <br/><br/>
 
 
 
-下面是爱哥博客中的一个demo，仅供参考(没有完成)：
+下面是在看爱哥博客是写的一个demo，仅供参考:
+
+
 
 ```java
 
 /**
- * Author Ztiany      <br/>
- * Email ztiany3@gmail.com      <br/>
- * Date 2015-10-03 10:51      <br/>
- * Description：测量练习
- * <p/>
  * 练习：实现一个自定义布局：里面所有的子view按照正方形的样式排列，允许定义多行多列
  */
 public class SquareEnhanceLayout extends ViewGroup {
@@ -175,7 +169,7 @@ public class SquareEnhanceLayout extends ViewGroup {
                 childWidths[i] = child.getMeasuredWidth() + customLayoutParams.leftMargin + customLayoutParams.rightMargin;
                 childHeights[i] = child.getMeasuredHeight() + customLayoutParams.topMargin + customLayoutParams.bottomMargin;
 
-                // 合并子元素的测量状态 关于测量状态也只是个实验性功能，按照谷歌官方做即可
+                // 合并子元素的测量状态，跟着系统控件写即可
                 childMeasureState = combineMeasuredStates(childMeasureState, child.getMeasuredState());
 
             }
@@ -240,7 +234,6 @@ public class SquareEnhanceLayout extends ViewGroup {
 
             }
 
-            //下面四段逻辑是 在 count>0之内
 
             //最后要考虑自身的padding
             parentDesireWidth += getPaddingLeft() + getPaddingRight();
@@ -253,18 +246,19 @@ public class SquareEnhanceLayout extends ViewGroup {
 
         }
 
-         /*
-           那么这个resolveSize方法其实是View提供给我们解算尺寸大小的一个工具方法，
-           其具体实现在API 11后交由另一个方法resolveSizeAndState也就是我们这一节例子所用到的去处理：
-            这个方法多了一个childMeasuredState参数，而上面例子我们在具体测量时也引入了一个childMeasureState临时变量的计算，
-            那么这个值的作用是什么呢？有何意义呢？说到这里不得不提API 11后引入的几个标识位：
-            MEASURED_HEIGHTSTATE_SHIFT，MEASURED_SIZE_MASK，MEASURED_STATE_MASK,MEASURED_STATE_TOO_SMALL
+   /*
+       这个resolveSize是View提供用来获取最合理size的一个工具方法
 
-            “childMeasuredState这个值呢由View.getMeasuredState()这个方法返回，一个布局（或者按我的说法父容器）
-            通过View.combineMeasuredStates()这个方法来统计其子元素的测量状态。在大多数情况下你可以简单地只传递0作为参数值，
-            而子元素状态值目前的作用只是用来告诉父容器在对其进行测量得出的测量值比它自身想要的尺寸要小，
-            如果有必要的话一个对话框将会根据这个原因来重新校正它的尺寸。”So、可以看出，测量状态对谷歌官方而言也还算个测试性的功能，
-            具体鄙人也没有找到很好的例证，如果大家谁找到了其具体的使用方法可以分享一下，这里我们还是就按照谷歌官方的建议依葫芦画瓢。
+       具体实现在API 11由resolveSizeAndState处理，这个方法多了一个childMeasuredState参数，而上面例子我们在具体测量时也引入了一个childMeasureState临时变量的计算，那么这个值的作用是什么呢？说到这里不得不提API 11后引入的几个标识位：
+        MEASURED_HEIGHTSTATE_SHIFT 测量高度状态遮罩
+        MEASURED_SIZE_MASK         测量尺寸遮罩
+        MEASURED_STATE_MASK        测量状态遮罩
+        MEASURED_STATE_TOO_SMALL   表示规定的size小于期望的size
+
+        childMeasuredState这个值由View.getMeasuredState()这个方法返回，一个布局通过View.combineMeasuredStates()这个方法来统计其子元素的测量状态。在大多数情况下你可以简单地只传递0作为参数值，而子元素状态值目前的作用只是用来告诉父容器在对其进行测量得出的测量值比它自身想要的尺寸要小，如果有必要的话一个对话框将会根据这个原因来重新校正它的尺寸。
+        这里我们还是就按照谷歌官方的建议依葫芦画瓢。
+
+        不过在看一些系统控件的写法时，很多操作(比如combineMeasuredStates)都使用了ViewCompat中的方法代替系统SDK提供的方法，已达到最好的兼容性，所以还是建议使用ViewCompat中的方法。
          */
         setMeasuredDimension(resolveSizeAndState(parentDesireWidth, widthMeasureSpec, childMeasureState),
                 resolveSizeAndState(parentDesireHeight, heightMeasureSpec, childMeasureState << MEASURED_HEIGHT_STATE_SHIFT));
@@ -400,10 +394,12 @@ public class SquareEnhanceLayout extends ViewGroup {
 
     在自定义属性时：直接使用android:layout_gravity这样的name而无需定义类型值，
     这样则表示我们的属性使用的Android自带的标签，之后我们只需根据布局文件中layout_gravity属性的值调用Gravity类下的方法去计算对齐方式则可，
-    Gravity类下的方法很好用，为什么这么说呢？因为其可以说是无关布局的，拿最简单的一个来说：
+    Gravity类下的方法很好用，为其可以说是无关布局的，拿最简单的一个来说：
                     public static void apply(int gravity, int w, int h, Rect container, Rect outRect) 更多方法查看：http://www.programgo.com/article/42992498417/
                         gravity      所需放置的对象，由该类中的常量定义
                         w               对象的水平尺寸
                         h                对象的垂直尺寸
                         container          容器空间的框架，将用来放置指定对象，应该足够大，以包含对象的宽和高。
                         outRect    接收对象在其容器中的计算帧(computed frame)
+
+掌握这些技巧对自定义控件会有很大的帮助。
