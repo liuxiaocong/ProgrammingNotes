@@ -38,6 +38,9 @@
 - [011——GestureDetector学习](Android/UI/View体系/011——GestureDetector学习.md)
 - [012——处理好多指拖动和MotionEvent解析](Android/UI/View体系/012——处理好多指拖动和MotionEvent解析)
 - [013——嵌套滑动研究](Android/UI/View体系/013——嵌套滑动研究.md)
+- [014——Scroller-OverScroller-VelocityTracker](Android/UI/View体系/014——Scroller-OverScroller-VelocityTracker.md)
+
+
 
 >未完
 
