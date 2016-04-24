@@ -58,7 +58,7 @@
 # 推荐的书
 
 ## Java
-- 《EffectiveJava》
+- [《EffectiveJava》](Java/EffectiveJava)
 - 《Java并发编程的艺术》
 - 《java编程思想》
 
