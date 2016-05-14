@@ -1,8 +1,31 @@
 # 1 Draw流程
-绘制是View树遍历流程的最后一个，用来绘制View，前面说的测量和布局只是确定View的大小和位置，如果不对view进行绘制，那么界面上依然不会有任何图形显示出来，draw也是从ViewRoot中的performTraversals发起的。这里会调用view的draw方法，但是并不是每个View都需要执行绘制，在执行绘制的过程中，只会重绘需要绘制的View
 
 
-# 2 draw源码分析
+绘制是View树遍历流程的最后一个，前面说的测量和布局只是确定View的大小和位置，如果不对view进行绘制，那么界面上依然不会有任何图形显示出来，draw也是从ViewRoot中的performTraversals发起的。然后会view的draw相关方法，但是并不是每个View都需要执行绘制，在执行绘制的过程中，只会重绘需要绘制的View。
+
+draw方法的流程为：
+
+    ViewRoot调用DecorView的draw方法：ViewRoot-->DecorView.draw(canvas)
+    
+    DecorView的draw方法调用自己的dispatchDraw(Canvas canvas)方法，然后在此方法中会调用子view的
+    draw(Canvas canvas, ViewGroup parent, long drawtime)方法，此方法会调用单个参数的draw(Canvas canvas)方法。
+
+
+
+# 2 draw方法
+
+view有两个重载的draw方法，分别是：
+
+    draw(Canvas canvas, ViewGroup parent, long drawtime)
+    draw(Canvas canvas)
+    
+draw(Canvas canvas, ViewGroup parent, long drawtime)方法由父view调用，此方法比较重要的，在这里会判断View的一些内部标识，还会对canvas做一些调整，如绘制区域与绘图坐标系的调整，不一定会调用view的 draw(Canvas canvas)方法，如果不调用则绘制的是view的缓存。具体可以查看相关方法的源码。
+
+
+
+
+
+
 
      public void draw(Canvas canvas) {
            ......
@@ -11,7 +34,7 @@
             final boolean dirtyOpaque = (privateFlags & DIRTY_MASK) == DIRTY_OPAQUE &&
                     (mAttachInfo == null || !mAttachInfo.mIgnoreDirtyState);
             mPrivateFlags = (privateFlags & ~DIRTY_MASK) | DRAWN;
-
+    
             /*
              *draw的步骤
              *
@@ -22,21 +45,21 @@
              *      5. 如果需要, 画一些渐变效果
              *      6. 画装饰内容，如滚动条
              */
-
+    
             // Step 1, draw the background, if needed
             int saveCount;
-
+    
             if (!dirtyOpaque) {
                 final Drawable background = mBGDrawable;
                 if (background != null) {
                     final int scrollX = mScrollX;
                     final int scrollY = mScrollY;
-
+    
                     if (mBackgroundSizeChanged) {
                         background.setBounds(0, 0,  mRight - mLeft, mBottom - mTop);
                         mBackgroundSizeChanged = false;
                     }
-
+    
                     if ((scrollX | scrollY) == 0) {
                         background.draw(canvas);
                     } else {
@@ -46,7 +69,7 @@
                     }
                 }
             }
-
+    
             // skip step 2 & 5 if possible (common case)
             final int viewFlags = mViewFlags;
             boolean horizontalEdges = (viewFlags & FADING_EDGE_HORIZONTAL) != 0;
@@ -55,44 +78,47 @@
             if (!verticalEdges && !horizontalEdges) {
                 // Step 3,画内容
                 if (!dirtyOpaque) onDraw(canvas);
-
+    
                 // Step 4,画孩子
                 dispatchDraw(canvas);
-
+    
                 // Step 6, 画装饰（滚动条）
                 onDrawScrollBars(canvas);
-
+    
                 // we're done...
                 return;
             }
-
+    
            ......
-
+    
             // Step 6, draw decorations (scrollbars)
             onDrawScrollBars(canvas);
         }
-
+        
 
 **dispatchDraw&drawChild**
 
     protected void dispatchDraw(Canvas canvas) {
     ......
-
+    
      for (int i = 0; i < count; i++) {
                     final View child = children[i];
                     if ((child.mViewFlags & VISIBILITY_MASK) == VISIBLE || child.getAnimation() != null) {
                         more |= drawChild(canvas, child, drawingTime);
                     }
                 }
-
-
+                               
+                               
     ......
     }
-
-
+                               
+    
     protected boolean drawChild(Canvas canvas, View child, long drawingTime) {
             return child.draw(canvas, this, drawingTime);
         }
+
+
+
 
 
 可以看到draw的过程分为：
@@ -101,12 +127,14 @@
 3. 调用onDraw画内容
 4. 调用dispatchDraw画子view
 5. 如果需要, 画渐变框
-6. 画装饰内容，如滚动条
+6. 画装饰内容，如前景与滚动条
+
+
 
 
 - onDraw是每个view需要实现的，否则View默认只能显示背景，而实现onDraw就是为了画出View的内容，而ViewGroup一般不需要实现onDraw,因为它仅仅是作为View的容器没有需要绘制东西，
 - dispatchDraw用来遍历ViewGrop的所有子view，执行draw方法
-- draw不是fianl方法，我们可以重载此方法，完全自定义draw过程，但是这不是很明智的选择
+
 
 
 # 3 onDraw中如何绘制
@@ -120,5 +148,34 @@
 - Path 路径
 - Bitmap Canvas是画布，但是我们需要画纸，Bitmap就是画纸
 - ColorMatrix和Matrix的熟练运用
+- PathMeasure
 
-总之绘制需要掌握很多的知识。
+
+
+
+
+
+# 4 View的缓存优化
+
+在Android的显示机制中，View的软件渲染都是基于bitmap图片进行的处理。并且刷新机制中只要是与脏数据区有交集的视图都将重绘，所以在View的设计中就有一个cache的概念存在，这个cache无疑就是一个bitmap对象。也就是说在绘制流程中View不一定会被重新绘制，有可能绘制的只是View的缓存。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
