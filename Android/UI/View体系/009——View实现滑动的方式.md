@@ -11,18 +11,15 @@
 
 ---
 
-## 1，ScrollTo/ScrollBy
+##1，ScrollTo/ScrollBy
 
-> 这两个方法移动的是View的content，如果在ViewGroup中移动的是ViewGroup的所有子view。如果在View中使用，那么移动的就是View的内容，类如TextView，content就是它的文本，ImageView，content就是他的drawable
+这两个方法移动的是View的content，如果在ViewGroup中移动的是ViewGroup的所有子view。如果在View中使用，那么移动的就是View的内容，类如TextView，content就是它的文本，ImageView，content就是他的drawable
+
+scrollTo/scrollBy方法虽然导致view的内容区域移动，但是一般不会导致子视图的重绘，此时绘制的是View的缓存。
 
 ###View的视图移动理解
 
-> 手机屏幕是一个中空的盖板，盖板下面是一个巨大的画布，也就是我们需要显示的内容，把这个盖板盖在画布的某一处时，透过中间的矩形，我们看见了手机屏幕上显示的视图，而画布上的其他视图，被盖住了无发看见,在手机屏幕上，我们看不见的视图，不代表它不存在，可能就是被盖住了（在屏幕外面），当调用scrollTo方法时，可以理解为外面的盖板在移动
-
->scrollBy(dx , dy);
-所以在scrollBy方法中,dx与dy为正数，视图将向坐标轴的负方向移动；dx与dy为负数，视图将向坐标轴的正方向移动。
-
-> 我的理解就是你手机往下滑动的时候，你希望看到的是view的content往下移动了，而如果你用的是scrollTo/scrollBy方法,你直接滑动的是那个遮罩，所有你看到的现象刚好相反，遮罩像下移动，你看到的是View的conten的下面的内容，所以你把dx,dy取负数，这时遮罩是往上面移动，就好像是view的content往下移动一样。
+> 手机屏幕是一个中空的盖板，盖板下面是一个巨大的画布，也就是我们需要显示的内容，把这个盖板盖在画布的某一处时，透过中间的矩形，我们看见了手机屏幕上显示的视图，而画布上的其他视图，被盖住了无法看见,在手机屏幕上，我们看不见的视图，不代表它不存在，可能就是被盖住了（在屏幕外面），当调用scrollTo方法时，可以理解为外面的盖板在移动，比如手指在手机屏幕上往下滑动的时候，使用scrollTo/scrollBy方法来处理滑动的话,你滑动的是那个遮罩，如果希望content往下移动，那么遮罩就应该是往上面移动，刚好与手指的滑动方向相反，体现在计算中就是对每次滑动的偏移值取反。
 
 ###实现方法：
 
@@ -55,14 +52,8 @@
 
 ####对View内部变量的影响：
 
-调用scrollTo/scrollBy滑动的是View的content，影响的是View的**mScrollX**与**mScrollY**。会调用的方法是**onScrollChanged**,在ViewGroup中调用scrollTo/scrollBy，不会对子view的各种参数如：top,left,x,y等造成影响。
+调用scrollTo/scrollBy滑动的是View的content，影响的是View的**mScrollX**与**mScrollY**。这时将触发**onScrollChanged**,在ViewGroup中调用scrollTo/scrollBy，不会对子view的各种参数如：top,left,x,y等造成影响。mScrollX、mScrollY就是**视图的内容的偏移量，而不是视图相对于其他容器或者视图的偏移量**。mScrollX的值总是等于View的左边缘与View的内容左边缘的水平方向距离。mScrollY类似。
 
-mScrollX的值总是等于View的左边缘与View的内容左边缘的水平方向距离。mScrollY类似
-
-mScrollX、mScrollY更详细的说就是:
-**视图的内容的偏移量，而不是视图相对于其他容器或者视图的偏移量**。也就是说，移动的是视图里面的内容
-
-**但是在absListView中的滑动则会改变子view的top，left，x，y等相关变量**，因其复用机制。
 
 
 
